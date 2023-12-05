@@ -1,14 +1,24 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"html/template"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/kljensen/snowball"
 )
+
+type Result struct {
+	Term, Title, URL, Sentence string
+	Score                      float64
+	Error                      bool
+	ErrorMessage               string
+}
+
+type Results struct {
+	Results []Result
+}
 
 func (mm *Indices) searchDB(term string) string {
 	if stem, err := snowball.Stem(term, "english", true); err == nil {
@@ -22,21 +32,42 @@ func (mm *Indices) searchDB(term string) string {
 
 func serveDB(mm *Indices) {
 	http.Handle("/", http.FileServer(http.Dir("static")))
-	http.Handle("/top10/", http.StripPrefix("/top10/", http.FileServer(http.Dir("top10"))))
 	http.Handle("/search", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		term := r.URL.Query().Get("term")
 
+		t, err := template.ParseFiles("static/template.html")
+		if err != nil {
+			http.Error(w, "ParseFiles Error", http.StatusInternalServerError)
+		}
+
+		var searchResults []Result
 		// If search query is bigram
 		if mm.isTwoWords(term) {
-			hits, err := mm.searchBigramTfIdf(term)
+			// Splitting term into two words
+			terms := strings.Fields(term)
+			firstTerm, secondTerm := terms[0], terms[1]
+			if secondTerm == "authors" {
+				secondTerm = "author"
+			}
+			// Searching bigram tfidf and getting hits
+			hits, err := mm.searchBigramTfIdf(firstTerm, secondTerm)
+
 			if len(hits) == 0 || err != nil {
-				io.WriteString(w, "Not found: "+term)
+				searchResults = append(searchResults, Result{
+					Error:        true,
+					ErrorMessage: "Word not found.",
+				})
 			} else {
-				io.WriteString(w, "Number of matches for: "+term+"\n")
 				for _, h := range hits {
 					title := mm.getTitle(h.URL) // Get title from db using url
-					line := fmt.Sprintf("%s\n%s: %v\n\n", title, h.URL, h.Score)
-					io.WriteString(w, line)
+					sentence := mm.getSentenceBigram(firstTerm, secondTerm, h.URL)
+					searchResults = append(searchResults, Result{
+						Term:     term,
+						Title:    title,
+						URL:      h.URL,
+						Sentence: sentence,
+						Score:    h.Score,
+					})
 				}
 			}
 		} else {
@@ -45,28 +76,50 @@ func serveDB(mm *Indices) {
 			if r.URL.Query().Get("wildcard") == "" {
 				hits, err := mm.searchTfIdfDB(term)
 				if len(hits) == 0 || err != nil {
-					io.WriteString(w, "Not found: "+term)
+					searchResults = append(searchResults, Result{
+						Error:        true,
+						ErrorMessage: "Word not found.",
+					})
 				} else {
-					io.WriteString(w, "Number of matches for: "+term+"\n")
 					for _, h := range hits {
 						title := mm.getTitle(h.URL) // Get title from db using url
-						line := fmt.Sprintf("%s\n%s: %v\n\n", title, h.URL, h.Score)
-						io.WriteString(w, line)
+						sentence := mm.getSentence(term, h.URL)
+						searchResults = append(searchResults, Result{
+							Term:     term,
+							Title:    title,
+							URL:      h.URL,
+							Sentence: sentence,
+							Score:    h.Score,
+						})
 					}
 				}
 			} else {
-				hits, err := mm.searchWildcardTfIdf(term)
-				if len(hits) == 0 || err != nil {
-					io.WriteString(w, "Not found: "+term)
+				hitsWithTerms, err := mm.searchWildcardTfIdf(term)
+				if len(hitsWithTerms) == 0 || err != nil {
+					searchResults = append(searchResults, Result{
+						Error:        true,
+						ErrorMessage: "Word not found.",
+					})
 				} else {
-					io.WriteString(w, "Number of matches for: "+term+"\n")
-					for _, h := range hits {
+					for _, h := range hitsWithTerms {
 						title := mm.getTitle(h.URL) // Get title from db using url
-						line := fmt.Sprintf("%s\n%s: %v\n\n", title, h.URL, h.Score)
-						io.WriteString(w, line)
+						searchResults = append(searchResults, Result{
+							Term:     h.Term,
+							Title:    title,
+							URL:      h.URL,
+							Sentence: mm.getSentence(h.Term, h.URL),
+							Score:    h.Score,
+						})
 					}
 				}
 			}
+		}
+		results := Results{
+			Results: searchResults,
+		}
+		err = t.Execute(w, results)
+		if err != nil {
+			http.Error(w, "Execute Error", http.StatusInternalServerError)
 		}
 	}))
 	go http.ListenAndServe(":8080", nil)
@@ -76,12 +129,12 @@ func (mm *Indices) searchTfIdfDB(term string) (Hits, error) {
 	return mm.TfIdfDB(mm.searchDB(term))
 }
 
-func (mm *Indices) searchWildcardTfIdf(term string) (Hits, error) {
+func (mm *Indices) searchWildcardTfIdf(term string) (HitsWithTerms, error) {
 	return mm.WildcardTfIdfDB(mm.searchDB(term))
 }
 
-func (mm *Indices) searchBigramTfIdf(term string) (Hits, error) {
-	return mm.BigramTfIdfDB(mm.searchDB(term))
+func (mm *Indices) searchBigramTfIdf(first, second string) (Hits, error) {
+	return mm.BigramTfIdfDB(mm.searchDB(first), mm.searchDB(second))
 }
 
 func (mm *Indices) isTwoWords(query string) bool {

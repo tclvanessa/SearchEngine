@@ -3,8 +3,44 @@ package main
 import (
 	"log"
 	"sort"
-	"strings"
 )
+
+type Hit struct {
+	URL   string
+	Score float64
+}
+type Hits []Hit
+
+func (h Hits) Len() int {
+	return len(h)
+}
+
+type HitWithTerm struct {
+	Hit
+	Term string
+}
+
+type HitsWithTerms []HitWithTerm
+
+func (h HitsWithTerms) Len() int {
+	return len(h)
+}
+
+// Sort in descending order
+func (h HitsWithTerms) Less(i, j int) bool {
+	// If score isn't the same, sort by score
+	if h[i].Score != h[j].Score {
+		return h[i].Score > h[j].Score
+	} else {
+		// Sort by URL if the score is the same
+		return h[i].URL > h[j].URL
+	}
+}
+
+// Swapping function for sorting hits with terms
+func (h HitsWithTerms) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
 
 // Sort in descending order
 func (h Hits) Less(i, j int) bool {
@@ -51,45 +87,44 @@ func (mm *Indices) TfIdfDB(term string) (Hits, error) {
 }
 
 // Returns Hits for wildcard search
-func (mm *Indices) WildcardTfIdfDB(term string) (Hits, error) {
-	hits := Hits{}
+func (mm *Indices) WildcardTfIdfDB(term string) (HitsWithTerms, error) {
+	hitsWithTerms := HitsWithTerms{}
 
 	// Getting rows of wildcard term ids
 	termIDs, err := mm.getTermIDsLike(term)
 	if err != nil {
 		log.Printf("Error in WildcardTfIdfDB getting termID: %v\n", err)
-		return hits, err
+		return hitsWithTerms, err
 	}
 
-	// Use helper function to get a slice of url ids from the rows of term ids
+	// Use helper function to get a slice of URL IDs from the rows of term IDs
 	for _, termID := range termIDs {
 		// Using helper function to get a slice of URL IDs from a term ID
 		urlIDsForWord := mm.getURLIDsFromTermID(termID)
 
 		// Range over that slice of URL IDs and get the URL itself
-		// to calculate the TF-IDF score and append the URL and score to hits
+		// to calculate the TF-IDF score and append the URL, score, and term to hitsWithTerms
 		for _, urlID := range urlIDsForWord {
 			termFromID := mm.getTerm(termID)
 			url := mm.getURL(urlID)
 			score := mm.getTFIDF(termFromID, url)
-			hits = append(hits, Hit{
-				url,
-				score,
+			hitsWithTerms = append(hitsWithTerms, HitWithTerm{
+				Hit: Hit{
+					url,
+					score,
+				},
+				Term: termFromID,
 			})
 		}
 	}
-	sort.Sort(hits) // Sort hits
-	return hits, nil
+
+	sort.Sort(hitsWithTerms) // Sort hitsWithTerms
+	return hitsWithTerms, nil
 }
 
 // Returns the Hits for bigram term
-func (mm *Indices) BigramTfIdfDB(term string) (Hits, error) {
+func (mm *Indices) BigramTfIdfDB(firstTerm, secondTerm string) (Hits, error) {
 	hits := Hits{}
-
-	// Splitting bigram into two words
-	terms := strings.Fields(term)
-	firstTerm, secondTerm := terms[0], terms[1]
-	// fmt.Println(firstTerm + " & " + secondTerm)
 
 	// Using helper function to get the term id from db
 	firstTermID, _, err := mm.getTermID(firstTerm)
@@ -127,6 +162,7 @@ func (mm *Indices) getTFIDF(term string, url string) float64 {
 	if err != nil {
 		log.Println("Error getting term count: ", err)
 	}
+	// fmt.Println(tc)
 
 	// Use helper func to get the total words in the doc
 	wordsInDoc, err := mm.getWordsInDoc(url)

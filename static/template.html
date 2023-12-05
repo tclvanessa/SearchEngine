@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="path/to/pure.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>VAN GO</title>
+</head>
+
+<body class="template">
+    <div class="search-results">
+        <!-- Back button linking to the main page -->
+        <a href="/" class="back-button">Back to Main Page</a>
+        {{with index .Results 0}}
+            <div class="results-header">
+                <h1>Search Results for "{{.Term}}":</h1>
+            </div>
+        {{end}}
+        {{range .Results}}
+            <div class="result">
+                <p class="url">{{.URL}}</p>
+                <h3><a href="{{.URL}}" target="_blank">{{.Title}}</a> | {{.Score}}</h3>
+                <p class="sentence">{{.Sentence}}</p>
+            </div>
+        {{end}}
+    </div>
+</body>
+
+</html>

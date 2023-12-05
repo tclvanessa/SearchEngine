@@ -1,0 +1,211 @@
+/* Background cover for main page */
+body.index {
+    background-image: url('green-background.jpg');
+    background-size: cover; 
+    background-position: center;
+    background-repeat: no-repeat;
+    margin: 0;
+    padding: 0;
+}
+
+/* Background color for search results page */
+body.template {
+    background-color: #c7d9bf
+}
+
+/* Style for main page */
+.splash-container {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center; /* Center vertically */
+    height: 100vh; /* Ensure full height */
+}
+
+.splash {
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    width: 300px;
+    margin-bottom: 50px;
+}
+
+.splash-head {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+/* Search input box */
+.pure-input {
+    background: #eee;
+    padding:10px;
+    border-radius:10px 0 0 10px;
+    border:0 none;
+    width: 200px;
+    margin-bottom: 10px;
+}
+
+/* Search submit button */
+.pure-button-color {
+    background:#6cd586;
+    color:white;
+    padding:10px 20px;
+    border-radius:0 10px 10px 0;
+    border:0 none;
+    cursor: pointer;
+}
+
+
+/* Wildcard checkbox style */
+.pure-checkbox {
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    position: relative;
+    display: inline-block;
+    margin-right: 9px;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    accent-color: #6cd586
+}
+
+.tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: #515151;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    top: 150%;
+    left: 50%;
+    margin-left: -100px;
+    font-size: 12px;
+}
+
+.pure-checkbox:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.pure-checkbox .tooltip-text::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #515151 transparent;
+}
+
+.info {
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    font-size: 15px;
+    margin-left: 10px;
+    padding: 3px;
+    color: rgba(245, 245, 245, 0.817);
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+}
+
+.info a {
+    color: rgb(0, 89, 0);
+    text-decoration: none;
+}
+
+.info a:hover {
+    color: rgb(0, 76, 0);
+}
+
+
+/* Style for search results page */
+.template {
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+
+}
+
+.search-results {
+    color: black;
+}
+
+.results-header {
+    background: white; 
+    font-size: 14px;
+    padding: 10px; 
+    margin-top: 3em;
+    margin-bottom: 2em; 
+    margin-left: 8px;
+    margin-right: 8px;
+    padding-left: 25px;
+    border-radius: 70px; 
+    border-bottom: 2px solid #ccc; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.result {
+    margin-left: 2em;
+}
+
+.result p.url {
+    font-size: 12px;
+    color: gray;
+    margin-bottom: -1.8em;
+}
+
+.result p.sentence {
+    font-size: 14.5px;
+    color: rgba(0, 0, 0, 0.803);
+    margin-bottom: 2.8em;
+    font-style: italic;
+}
+
+.result h3 {
+    margin-bottom: -0.4em;
+    font-size: 21px;
+}
+
+.result h3 a {
+    text-decoration: none;
+    color: #333;
+}
+
+.result h3 a:hover {
+    text-decoration: underline;
+    color: rgb(0, 76, 0);
+}
+
+.error-msg {
+    background: white; 
+    font-size: 14px;
+    padding: 10px; 
+    margin-top: 3em;
+    margin-bottom: 2em; 
+    margin-left: 8px;
+    margin-right: 8px;
+    padding-left: 25px;
+    border-radius: 70px; 
+    border-bottom: 2px solid #ccc; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+/* Back button style*/
+.back-button {
+    position: absolute;
+    top: 20px;
+    right: 2px;
+    margin-right: 20px;
+    display: inline-block;
+    padding: 8px 16px;
+    text-decoration: none;
+    background-color: gray; /* Button color */
+    color: white;
+    border-radius: 70px;
+    transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: #4a9c4e; /* Button color on hover */
+}

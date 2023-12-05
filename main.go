@@ -41,6 +41,12 @@ type Indices struct {
 	selCountBigram         *sql.Stmt
 	updTitle               *sql.Stmt
 	selTitle               *sql.Stmt
+	insSentenceStmt        *sql.Stmt
+	selSentence            *sql.Stmt
+	selSentenceBigram      *sql.Stmt
+	selSentenceID          *sql.Stmt
+	selBigramSentence      *sql.Stmt
+	selBigramSentenceID    *sql.Stmt
 
 	totalDoc     int
 	stopWordsMap map[string]struct{}
@@ -56,25 +62,16 @@ func NewIndices() *Indices {
 	return res
 }
 
-type Hit struct {
-	URL   string
-	Score float64
-}
-type Hits []Hit
-
-func (h Hits) Len() int {
-	return len(h)
-}
-
 type DownloadResult struct {
 	body []byte
 	url  string
 }
 
 type ExtractResult struct {
-	url   string
-	words []string
-	title string
+	url string
+	// words     []string
+	title     string
+	sentences []string
 }
 
 // Function to read the JSON stop words file and put it into a map
@@ -102,7 +99,7 @@ func mapStopWords(filePath string) map[string]struct{} {
 }
 
 func main() {
-	fmt.Println("Lab 07")
+	fmt.Println("Project 06")
 
 	mm := NewIndices()
 	url := "https://openai.com/"

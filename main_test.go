@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -41,7 +42,9 @@ func TestCase1(t *testing.T) {
 	// mmDB.crawlDB(url, 40, 150, 200)
 
 	for _, tc := range tests {
-		tfidf, _ := mmDB.BigramTfIdfDB(tc.term)
+		terms := strings.Fields(tc.term)
+		firstTerm, secondTerm := terms[0], terms[1]
+		tfidf, _ := mmDB.BigramTfIdfDB(firstTerm, secondTerm)
 		for i := range tfidf {
 			if tfidf[i].URL != tc.want[i].URL || tfidf[i].Score != tc.want[i].Score {
 				t.Errorf("For %v:\nGot: %v\nExpected: %v\n", tc.term, tfidf, tc.want)

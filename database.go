@@ -41,9 +41,11 @@ func (mm *Indices) createDB() {
         id INTEGER NOT NULL PRIMARY KEY,
 		urlID INTEGER,
 		termID INTEGER,
+		sentenceID INTEGER,
 		count INTEGER,
-        FOREIGN KEY(termID) REFERENCES urls(id),
-		FOREIGN KEY(urlID) REFERENCES terms(id)
+        FOREIGN KEY(termID) REFERENCES terms(id),
+		FOREIGN KEY(urlID) REFERENCES urls(id),
+		FOREIGN KEY(sentenceID) REFERENCES sentences(id)
     )`)
 	if err != nil {
 		log.Fatal("Error in creating hits table: ", err)
@@ -55,12 +57,25 @@ func (mm *Indices) createDB() {
         termID1 TEXT,
 		termID2 TEXT,
 		urlID INTEGER,
+		sentenceID INTEGER,
 		count INTEGER,
 		FOREIGN KEY(termID1) REFERENCES terms(id),
-		FOREIGN KEY(termID2) REFERENCES terms(id)
+		FOREIGN KEY(termID2) REFERENCES terms(id),
+		FOREIGN KEY(urlID) REFERENCES urls(id),
+		FOREIGN KEY(sentenceID) REFERENCES sentences(id)
     )`)
 	if err != nil {
 		log.Fatal("Error in creating bigram table: ", err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS sentences (
+        id INTEGER NOT NULL PRIMARY KEY,
+        name TEXT,
+		urlID INTEGER,
+		FOREIGN KEY(urlID) REFERENCES urls(id)
+    )`)
+	if err != nil {
+		log.Fatal("Error in creating sentences table: ", err)
 	}
 
 	// Prepared statements
@@ -119,7 +134,7 @@ func (mm *Indices) createDB() {
 		log.Fatal("selURLIDFromBigramStmt: ", err)
 	}
 
-	mm.selCount, err = db.Prepare("SELECT count FROM hits WHERE urlID=? AND termID=?;")
+	mm.selCount, err = db.Prepare("SELECT count FROM hits WHERE urlID=? AND termID=? AND sentenceID=?;")
 	if err != nil {
 		log.Fatal("selCount: ", err)
 	}
@@ -134,12 +149,12 @@ func (mm *Indices) createDB() {
 		log.Fatal("selCountTermIDBigram: ", err)
 	}
 
-	mm.updHits, err = db.Prepare("UPDATE hits SET count=? WHERE urlID=? AND termID=?;")
+	mm.updHits, err = db.Prepare("UPDATE hits SET count=? WHERE urlID=? AND termID=? AND sentenceID=?;")
 	if err != nil {
 		log.Fatal("updHits: ", err)
 	}
 
-	mm.insHits, err = db.Prepare("INSERT INTO hits (count, urlID, termID) VALUES (1, ?, ?);")
+	mm.insHits, err = db.Prepare("INSERT INTO hits (count, urlID, termID, sentenceID) VALUES (1, ?, ?, ?);")
 	if err != nil {
 		log.Fatal("insHits: ", err)
 	}
@@ -154,17 +169,17 @@ func (mm *Indices) createDB() {
 		log.Fatal("selSumCount: ", err)
 	}
 
-	mm.insBigram, err = db.Prepare("INSERT INTO bigram (count, urlID, termID1, termID2) VALUES (1, ?, ?, ?);")
+	mm.insBigram, err = db.Prepare("INSERT INTO bigram (count, urlID, termID1, termID2, sentenceID) VALUES (1, ?, ?, ?, ?);")
 	if err != nil {
 		log.Fatal("insBigram: ", err)
 	}
 
-	mm.updBigram, err = db.Prepare("UPDATE bigram SET count=? WHERE urlID=? AND termID1=? AND termID2=?;")
+	mm.updBigram, err = db.Prepare("UPDATE bigram SET count=? WHERE urlID=? AND termID1=? AND termID2=? AND sentenceID=?;")
 	if err != nil {
 		log.Fatal("updBigram: ", err)
 	}
 
-	mm.selCountBigram, err = db.Prepare("SELECT count FROM bigram WHERE urlID=? AND termID1=? AND termID2=?;")
+	mm.selCountBigram, err = db.Prepare("SELECT count FROM bigram WHERE urlID=? AND termID1=? AND termID2=? AND sentenceID=?;")
 	if err != nil {
 		log.Fatal("selCountBigram: ", err)
 	}
@@ -179,8 +194,157 @@ func (mm *Indices) createDB() {
 		log.Fatal("selTitle: ", err)
 	}
 
+	mm.insSentenceStmt, err = db.Prepare("INSERT INTO sentences(name, urlID) VALUES(?, ?);")
+	if err != nil {
+		log.Fatal("insSentenceStmt: ", err)
+	}
+
+	mm.selSentence, err = db.Prepare("SELECT name FROM sentences WHERE id=?;")
+	if err != nil {
+		log.Fatal("selSentenceID: ", err)
+	}
+
+	mm.selSentenceBigram, err = db.Prepare("SELECT sentenceID FROM bigram WHERE urlID=? AND termID1=? AND termID2=?;")
+	if err != nil {
+		log.Fatal("selSentenceBigram: ", err)
+	}
+
+	mm.selSentenceID, err = db.Prepare("SELECT sentenceID FROM hits WHERE urlID=? AND termID=?;")
+	if err != nil {
+		log.Fatal("selSentenceID: ", err)
+	}
+
+	mm.selBigramSentence, err = db.Prepare("SELECT name FROM sentences WHERE id=?;")
+	if err != nil {
+		log.Fatal("selBigramSentence: ", err)
+	}
+
+	mm.selBigramSentenceID, err = db.Prepare("SELECT sentenceID FROM bigram WHERE urlID=? AND termID1=? AND termID2=?;")
+	if err != nil {
+		log.Fatal("selBigramSentenceID: ", err)
+	}
+
 	log.Println("Database and tables created successfully.")
 	mm.db = db
+}
+
+// Insert sentence into sentences table
+func (mm *Indices) insertSentence(sentence, url string) (int, error) {
+	urlID, _, err := mm.getURLID(url)
+	if err != nil {
+		log.Println("Error getting url id in insertSentence for ", url)
+	}
+
+	// insert into table
+	result, err1 := mm.insSentenceStmt.Exec(sentence, urlID)
+	if err1 != nil {
+		return 0, err1
+	}
+	lastInsertID, err2 := result.LastInsertId()
+	if err2 != nil {
+		return 0, err2
+	}
+
+	return int(lastInsertID), nil
+}
+
+// Get sentence for interface
+func (mm *Indices) getSentence(term, url string) string {
+	sentenceID, err := mm.getSentenceID(term, url)
+	if err != nil {
+		log.Println("Error getting sentence id in getSentence: ", err)
+	}
+
+	var sentence, nextSentence string
+	for len(sentence) < 100 {
+		err := mm.selSentence.QueryRow(sentenceID).Scan(&sentence)
+		if err != nil {
+			log.Println("Error getting sentence in getSentence: ", err)
+			break // Break the loop if there's an error fetching the current sentence
+		}
+
+		err = mm.selSentence.QueryRow(sentenceID + 1).Scan(&nextSentence)
+		if err != nil {
+			log.Println("Error getting next sentence in getSentence: ", err)
+			break // Break the loop if there's an error fetching the next sentence
+		}
+
+		sentence += " " + nextSentence
+		sentenceID++
+	}
+	return sentence
+}
+
+func (mm *Indices) getSentenceBigram(first, second, url string) string {
+	bigramSentenceID, err := mm.getSentenceIDBigram(url, first, second)
+	if err != nil {
+		log.Println("Error getting bigram sentence id in getSentenceBigram: ", err)
+	}
+
+	var sentence, nextSentence string
+	for len(sentence) < 100 {
+		err := mm.selSentence.QueryRow(bigramSentenceID).Scan(&sentence)
+		if err != nil {
+			log.Println("Error getting sentence in getSentence: ", err)
+			break // Break the loop if there's an error fetching the current sentence
+		}
+
+		err = mm.selSentence.QueryRow(bigramSentenceID + 1).Scan(&nextSentence)
+		if err != nil {
+			log.Println("Error getting next sentence in getSentence: ", err)
+			break // Break the loop if there's an error fetching the next sentence
+		}
+
+		sentence += " " + nextSentence
+		bigramSentenceID++
+	}
+	return sentence
+}
+
+func (mm *Indices) getSentenceID(term, url string) (int, error) {
+	urlID, _, err1 := mm.getURLID(url)
+	if err1 != nil {
+		log.Println("Error getting url id in getSentenceID for: ", err1)
+	}
+
+	termID, _, err2 := mm.getTermID(term)
+	if err2 != nil {
+		log.Println("Error getting term id in getSentenceID: ", err2)
+	}
+
+	var sentenceID int
+	err3 := mm.selSentenceID.QueryRow(urlID, termID).Scan(&sentenceID)
+	if err3 != nil {
+		log.Println("Error getting sentence id in getSentenceID: ", err3)
+		return 0, err3
+	}
+	return sentenceID, nil
+}
+
+func (mm *Indices) getSentenceIDBigram(url, term1, term2 string) (int, error) {
+	urlID, _, err1 := mm.getURLID(url)
+	if err1 != nil {
+		log.Println("Error getting url id in getSentenceIDBigram: ", err1)
+		return -1, err1
+	}
+	firstTermID, _, err2 := mm.getTermID(term1)
+	if err2 != nil {
+		log.Println("Error getting term id 1 in getSentenceIDBigram: ", err2)
+		return -1, err2
+	}
+	secondTermID, _, err3 := mm.getTermID(term2)
+	if err3 != nil {
+		log.Println("Error getting term id 2 in getSentenceIDBigram: ", err3)
+		return -1, err3
+	}
+
+	var sentenceID int
+	err := mm.selBigramSentenceID.QueryRow(urlID, firstTermID, secondTermID).Scan(&sentenceID)
+	if err != nil {
+		log.Println("Error selecting bigram sentence id: ", err)
+		return 0, err
+	}
+	return sentenceID, nil
 }
 
 // Function for inserting title into urls table using update
@@ -354,7 +518,7 @@ func (mm *Indices) getTermIDsLike(term string) ([]int, error) {
 	return termIDs, nil
 }
 
-func (mm *Indices) insertBigram(first, second, url string) error {
+func (mm *Indices) insertBigram(first, second, url string, sentenceID int) error {
 	// Get url and term ids
 	urlID, _, err := mm.getURLID(url)
 	if err != nil {
@@ -370,12 +534,12 @@ func (mm *Indices) insertBigram(first, second, url string) error {
 	}
 
 	var hits int
-	err = mm.selCountBigram.QueryRow(urlID, firstTermID, secondTermID).Scan(&hits)
+	err = mm.selCountBigram.QueryRow(urlID, firstTermID, secondTermID, sentenceID).Scan(&hits)
 	if err == nil {
 		// If bigram exists, update bigram table
 		hits++ // Incrementing number of hits
 
-		_, err = mm.updBigram.Exec(hits, urlID, firstTermID, secondTermID)
+		_, err = mm.updBigram.Exec(hits, urlID, firstTermID, secondTermID, sentenceID)
 		if err != nil {
 			log.Fatalf("Error updating bigram table %v", err)
 			return err
@@ -386,7 +550,7 @@ func (mm *Indices) insertBigram(first, second, url string) error {
 		if err == sql.ErrNoRows {
 			hits = 1
 
-			_, err = mm.insBigram.Exec(urlID, firstTermID, secondTermID)
+			_, err = mm.insBigram.Exec(urlID, firstTermID, secondTermID, sentenceID)
 			if err != nil {
 				log.Fatalf("Error inserting into bigram table %v", err)
 				return err
@@ -398,7 +562,7 @@ func (mm *Indices) insertBigram(first, second, url string) error {
 }
 
 // Function to get the term count of a term in a url
-func (mm *Indices) insertCount(url string, term string) error {
+func (mm *Indices) insertCount(url, term string, sentenceID int) error {
 	urlID, _, err := mm.getURLID(url)
 	if err != nil {
 		log.Println("Error getting url id for ", url)
@@ -409,12 +573,12 @@ func (mm *Indices) insertCount(url string, term string) error {
 	}
 
 	var hits int
-	err = mm.selCount.QueryRow(urlID, termID).Scan(&hits)
+	err = mm.selCount.QueryRow(urlID, termID, sentenceID).Scan(&hits)
 	if err == nil {
 		// If word exists, update hits table
 		hits++ // Incrementing number of hits
 
-		_, err = mm.updHits.Exec(hits, urlID, termID)
+		_, err = mm.updHits.Exec(hits, urlID, termID, sentenceID)
 		if err != nil {
 			log.Fatalf("Error updating hits table: %v", err)
 			return err
@@ -425,7 +589,7 @@ func (mm *Indices) insertCount(url string, term string) error {
 		if err == sql.ErrNoRows {
 			hits = 1
 
-			_, err = mm.insHits.Exec(urlID, termID)
+			_, err = mm.insHits.Exec(urlID, termID, sentenceID)
 			if err != nil {
 				log.Fatalf("Error inserting into hits table %v", err)
 				return err
@@ -450,9 +614,14 @@ func (mm *Indices) getCount(url, term string) (int, error) {
 		log.Println("Error getting url id in getCount: ", err2)
 		return -1, err2
 	}
+	sentenceID, err3 := mm.getSentenceID(term, url)
+	if err3 != nil {
+		log.Println("Error getting sentence id in getCount: ", err3)
+		return -1, err3
+	}
 
 	// Word and url in the hits table
-	err := mm.selCount.QueryRow(urlID, termID).Scan(&hits)
+	err := mm.selCount.QueryRow(urlID, termID, sentenceID).Scan(&hits)
 	if err == nil {
 		return hits, nil
 	} else {
@@ -479,9 +648,15 @@ func (mm *Indices) getBigramCount(url, term1, term2 string) (int, error) {
 		log.Println("Error getting term id in getBigramCount: ", err3)
 		return -1, err3
 	}
+	// fmt.Println(urlID, firstTermID, secondTermID)
+	sentenceID, err4 := mm.getSentenceIDBigram(url, term1, term2)
+	if err4 != nil {
+		log.Println("Error getting sentence id in getBigramCount: ", err4)
+		return -1, err4
+	}
 
 	// Get count in the bigram table
-	err := mm.selCountBigram.QueryRow(urlID, firstTermID, secondTermID).Scan(&hits)
+	err := mm.selCountBigram.QueryRow(urlID, firstTermID, secondTermID, sentenceID).Scan(&hits)
 	if err == nil {
 		return hits, nil
 	} else {

@@ -1,12 +1,37 @@
-<html>
-     <body>
-         <form action="/search" method="get">
-             <label for="inputBox">Search</label>
-             <input id="inputBox" name="term"/>
-             <button type="submit">Go</button>
-             <br>
-             <input type="checkbox" id="wildcard" name="wildcard" value="wildcard">
-             <label for="wildcard">Wildcard Search</label>
-         </form>
-     </body>
- </html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="path/to/pure.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>VAN GO</title>
+</head>
+
+<body class="index">
+    <div class="splash-container">
+        <div class="splash">
+            <h1 class="splash-head">VAN GO</h1>
+            <form class="pure-form" action="/search" method="get">
+                <input id="inputBox" class="pure-input" type="text" name="term" placeholder="Type something to search..." required>
+                <button type="submit" class="pure-button pure-button-primary pure-button-color">
+                    <i class="fa-solid fa-magnifying-glass fa-bounce" style="color: #ffffff;"></i>
+                </button>
+                <br>
+                <label for="wildcard" class="pure-checkbox">
+                    <input type="checkbox" id="wildcard" name="wildcard" value="wildcard">
+                    Wildcard Search
+                    <span class="tooltip-text">e.g. searching "basket" would give "basketball", "basketmaking", "basketweaving", etc.</span>
+                </label>
+            </form>
+        </div>
+    </div>
+    <div class="info">
+        <p>By: Vanessa Le<br>
+        <a href="mailto:vcle@dons.usfca.edu">vcle@dons.usfca.edu</a></p>
+    </div>
+</body>
+
+</html>

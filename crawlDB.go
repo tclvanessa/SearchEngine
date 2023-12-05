@@ -34,7 +34,7 @@ func (mm *Indices) crawlDB(seed string, downloaders int, extractors int, indexer
 
 	// Start the crawl with URLs from the sitemap
 	for _, url := range sitemapURLs {
-		fmt.Println(url)
+		// fmt.Println(url)
 		dlInC <- url // Feed each URL into the download input channel
 	}
 
@@ -66,7 +66,7 @@ func (mm *Indices) crawlDB(seed string, downloaders int, extractors int, indexer
 		go mm.downloadDB(dlInC, dlOutC)
 	}
 	for i := 0; i < extractors; i++ {
-		// Take in body/url from download to extract words/clean urls
+		// Take in body/url from download to extract words urls
 		// Also send clean urls not crawled yet into download queue
 		go mm.extractDB(dlInC, dlOutC, exOutC)
 	}
