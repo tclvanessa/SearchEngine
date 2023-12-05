@@ -275,6 +275,7 @@ func (mm *Indices) getSentence(term, url string) string {
 	return sentence
 }
 
+// Get sentence for bigrams for interface
 func (mm *Indices) getSentenceBigram(first, second, url string) string {
 	bigramSentenceID, err := mm.getSentenceIDBigram(url, first, second)
 	if err != nil {

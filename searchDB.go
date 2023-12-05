@@ -35,6 +35,7 @@ func serveDB(mm *Indices) {
 	http.Handle("/search", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		term := r.URL.Query().Get("term")
 
+		// Template
 		t, err := template.ParseFiles("static/template.html")
 		if err != nil {
 			http.Error(w, "ParseFiles Error", http.StatusInternalServerError)
@@ -59,8 +60,8 @@ func serveDB(mm *Indices) {
 				})
 			} else {
 				for _, h := range hits {
-					title := mm.getTitle(h.URL) // Get title from db using url
-					sentence := mm.getSentenceBigram(firstTerm, secondTerm, h.URL)
+					title := mm.getTitle(h.URL)                                    // Get title from db using url
+					sentence := mm.getSentenceBigram(firstTerm, secondTerm, h.URL) // Get sentence for bigrams
 					searchResults = append(searchResults, Result{
 						Term:     term,
 						Title:    title,
@@ -82,8 +83,8 @@ func serveDB(mm *Indices) {
 					})
 				} else {
 					for _, h := range hits {
-						title := mm.getTitle(h.URL) // Get title from db using url
-						sentence := mm.getSentence(term, h.URL)
+						title := mm.getTitle(h.URL)             // Get title from db using url
+						sentence := mm.getSentence(term, h.URL) // Get sentence
 						searchResults = append(searchResults, Result{
 							Term:     term,
 							Title:    title,
@@ -94,6 +95,7 @@ func serveDB(mm *Indices) {
 					}
 				}
 			} else {
+				// Wildcard
 				hitsWithTerms, err := mm.searchWildcardTfIdf(term)
 				if len(hitsWithTerms) == 0 || err != nil {
 					searchResults = append(searchResults, Result{
@@ -114,9 +116,12 @@ func serveDB(mm *Indices) {
 				}
 			}
 		}
+		// Put searchResults into the results to send to execute
 		results := Results{
 			Results: searchResults,
 		}
+
+		// Execute results using template
 		err = t.Execute(w, results)
 		if err != nil {
 			http.Error(w, "Execute Error", http.StatusInternalServerError)

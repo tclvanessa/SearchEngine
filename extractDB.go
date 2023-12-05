@@ -41,26 +41,12 @@ func (mm *Indices) extractDB(inC chan string, chIn chan DownloadResult, chOut ch
 			case html.TextNode:
 				p := n.Parent
 				if p.Type == html.ElementNode && (p.Data != "style" && p.Data != "script") {
+					// Use sentence tokenizer to get sentences and append to slice
 					sentence := tokenizer.Tokenize(strings.TrimSpace(n.Data))
 
 					for _, s := range sentence {
 						sentences = append(sentences, s.Text)
 					}
-
-					// newWords := strings.FieldsFunc(n.Data, func(r rune) bool {
-					// 	return !unicode.IsLetter(r) && !unicode.IsNumber(r)
-					// })
-					// for _, w := range newWords {
-					// 	stem, err := snowball.Stem(w, "english", true)
-					// 	if err != nil {
-					// 		log.Println("Failed to stem", w, err)
-					// 	} else {
-					// 		// Check if the stemmed word is not a stop word
-					// 		if _, exists := mm.stopWordsMap[stem]; !exists {
-					// 			words = append(words, stem)
-					// 		}
-					// 	}
-					// }
 				}
 			}
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
